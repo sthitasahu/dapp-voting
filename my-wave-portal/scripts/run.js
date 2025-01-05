@@ -1,37 +1,63 @@
-const {ethers}=require("hardhat");
+const { ethers } = require("hardhat");
+
 const main = async () => {
-    const [owner, randomPerson] = await hre.ethers.getSigners();
-    const waveContractFactory = await hre.ethers.getContractFactory("WavePortal");
-    const waveContract = await waveContractFactory.deploy();
+    // Log the deployer info first to verify we're connected
+    const [deployer] = await ethers.getSigners();
+    console.log("Deploying with account:", deployer.address);
     
-  
-    console.log("Contract deployed to:", waveContract.address);
-    console.log("Contract deployed by:", owner.address);
-  
-    await waveContract.getTotalWaves();
-  
-    const firstWaveTxn=await waveContract.wave();
-    await firstWaveTxn.wait();
+    const waveContractFactory = await ethers.getContractFactory('WavePortal');
+    
+   
+    const waveContract = await waveContractFactory.deploy({
+        value: ethers.parseEther('0.01'),
+    });
 
-
-    await waveContract.getTotalWaves();
-
-    const secondWaveTxn=await waveContract.connect(randomPerson).wave();
-    await secondWaveTxn.wait();
+   
+    await waveContract.waitForDeployment();
+    
+    const contractAddress = await waveContract.getAddress();
+    console.log('Contract deployed to:', contractAddress);
 
     
-    await waveContract.getTotalWaves();
-  };
-  
-  const runMain = async () => {
-    try {
-      await main();
-      process.exit(0);
-    } catch (error) {
-      console.log(error);
-      process.exit(1);
+    if (!contractAddress) {
+        throw new Error("Contract deployment failed - no address returned");
     }
-  };
-  
-  runMain();
 
+    // Get and log contract balance
+    let contractBalance = await ethers.provider.getBalance(contractAddress);
+    console.log(
+        'Contract balance:',
+        ethers.formatEther(contractBalance)
+    );
+
+    
+    let waveTxn = await waveContract.wave("This is wave #1");
+                       
+    await waveTxn.wait();
+
+
+    let waveTxn2=await waveContract.wave("This is wave #2");
+    await waveTxn2.wait();
+
+    // Get updated contract balance
+    contractBalance = await ethers.provider.getBalance(contractAddress);
+    console.log(
+        'Contract balance:',
+        ethers.formatEther(contractBalance)
+    );
+
+    let allWaves = await waveContract.getAllWaves();
+    console.log("All waves:", allWaves);
+};
+
+const runMain = async () => {
+    try {
+        await main();
+        process.exit(0);
+    } catch (error) {
+        console.log("Error details:", error);
+        process.exit(1);
+    }
+};
+
+runMain();
